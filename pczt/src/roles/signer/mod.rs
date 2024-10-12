@@ -12,7 +12,7 @@ use zcash_primitives::{
 };
 use zcash_protocol::{consensus::BranchId, value::Zatoshis};
 
-use crate::Pczt;
+use crate::{IgnoreMissing, Pczt};
 
 const V5_TX_VERSION: u32 = 5;
 const V5_VERSION_GROUP_ID: u32 = 0x26A7270A;
@@ -40,14 +40,40 @@ impl Signer {
         index: usize,
         ask: &sapling::keys::SpendAuthorizingKey,
     ) -> Result<(), Error> {
-        // TODO: Check consistency of the input being signed.
-
         let spend = self
             .pczt
             .sapling
             .spends
             .get_mut(index)
             .ok_or(Error::InvalidIndex)?;
+
+        // Check consistency of the input being signed.
+        let note_from_fields = spend
+            .note_from_fields()
+            .ignore_missing()
+            .map_err(Error::Sapling)?;
+
+        if let Some(note) = note_from_fields {
+            let tx_spend = self
+                .tx_data
+                .sapling_bundle()
+                .expect("index checked above")
+                .shielded_spends()
+                .get(index)
+                .expect("index checked above");
+
+            let proof_generation_key = spend
+                .proof_generation_key_from_field()
+                .map_err(Error::Sapling)?;
+
+            let nk = proof_generation_key.to_viewing_key().nk;
+
+            let merkle_path = spend.witness_from_field().map_err(Error::Sapling)?;
+
+            if &note.nf(&nk, merkle_path.position().into()) != tx_spend.nullifier() {
+                return Err(Error::InvalidNullifier);
+            }
+        }
 
         let alpha = spend.alpha_from_field().map_err(Error::Sapling)?;
 
@@ -77,14 +103,35 @@ impl Signer {
         index: usize,
         ask: &orchard::keys::SpendAuthorizingKey,
     ) -> Result<(), Error> {
-        // TODO: Check consistency of the input being signed.
-
         let action = self
             .pczt
             .orchard
             .actions
             .get_mut(index)
             .ok_or(Error::InvalidIndex)?;
+
+        // Check consistency of the input being signed.
+        let note_from_fields = action
+            .spend
+            .note_from_fields()
+            .ignore_missing()
+            .map_err(Error::Orchard)?;
+
+        if let Some(note) = note_from_fields {
+            let tx_action = self
+                .tx_data
+                .orchard_bundle()
+                .expect("index checked above")
+                .actions()
+                .get(index)
+                .expect("index checked above");
+
+            let fvk = action.spend.fvk_from_field().map_err(Error::Orchard)?;
+
+            if &note.nullifier(&fvk) != tx_action.nullifier() {
+                return Err(Error::InvalidNullifier);
+            }
+        }
 
         let alpha = action.spend.alpha_from_field().map_err(Error::Orchard)?;
 
@@ -229,6 +276,8 @@ impl orchard::bundle::Authorization for OrchardEffectsOnly {
 pub enum Error {
     Global(GlobalError),
     InvalidIndex,
+    InvalidNoteCommitment,
+    InvalidNullifier,
     Orchard(crate::orchard::Error),
     Sapling(crate::sapling::Error),
     Transparent(crate::transparent::Error),
