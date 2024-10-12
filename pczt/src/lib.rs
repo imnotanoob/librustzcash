@@ -7,6 +7,12 @@
 //! - Constructor (anyone can contribute)
 //!   - Adds spends and outputs to the PCZT.
 //!   - A single entity is likely to be both a Creator and Constructor.
+//! - Signer (capability holders can contribute)
+//!   - Needs the spend authorization randomizers to create signatures.
+//!   - A Signer should only need to implement:
+//!     - SignatureHash algorithm
+//!     - Signatures (RedJubjub / RedPallas)
+//!     - A source of randomness.
 //! - Combiner (anyone can execute)
 //!   - Combines several PCZTs that represent the same transaction into a single PCZT.
 //!   - Because we aren't storing the partial transaction in network format, we need to

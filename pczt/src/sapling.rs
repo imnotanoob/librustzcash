@@ -1,5 +1,8 @@
 use crate::roles::combiner::merge_optional;
 
+#[cfg(feature = "sapling")]
+use pasta_curves::group::ff::PrimeField;
+
 const GROTH_PROOF_SIZE: usize = 48 + 96 + 48;
 
 /// PCZT fields that are specific to producing the transaction's Sapling bundle (if any).
@@ -49,6 +52,14 @@ pub(crate) struct Spend {
     ///
     /// This is set by the Signer.
     pub(crate) spend_auth_sig: Option<[u8; 64]>,
+
+    /// The spend authorization randomizer.
+    ///
+    /// - This is chosen by the Constructor.
+    /// - This is required by the Signer for creating `spend_auth_sig`, and may be used to
+    ///   validate `rk`.
+    /// - After`zkproof` / `spend_auth_sig` has been set, this can be redacted.
+    pub(crate) alpha: Option<[u8; 32]>,
 }
 
 /// Information about a Sapling output within a transaction.
@@ -138,6 +149,7 @@ impl Bundle {
                 rk,
                 zkproof,
                 spend_auth_sig,
+                alpha,
             } = rhs;
 
             if lhs.cv != cv || lhs.nullifier != nullifier || lhs.rk != rk {
@@ -145,7 +157,8 @@ impl Bundle {
             }
 
             if !(merge_optional(&mut lhs.zkproof, zkproof)
-                && merge_optional(&mut lhs.spend_auth_sig, spend_auth_sig))
+                && merge_optional(&mut lhs.spend_auth_sig, spend_auth_sig)
+                && merge_optional(&mut lhs.alpha, alpha))
             {
                 return None;
             }
@@ -282,6 +295,15 @@ impl Bundle {
 }
 
 #[cfg(feature = "sapling")]
+impl Spend {
+    pub(crate) fn alpha_from_field(&self) -> Result<jubjub::Scalar, Error> {
+        jubjub::Scalar::from_repr(self.alpha.ok_or(Error::MissingSpendAuthRandomizer)?)
+            .into_option()
+            .ok_or(Error::InvalidSpendAuthRandomizer)
+    }
+}
+
+#[cfg(feature = "sapling")]
 #[derive(Debug)]
 pub enum Error {
     InvalidAnchor,
@@ -289,6 +311,8 @@ pub enum Error {
     InvalidExtractedNoteCommitment,
     InvalidOutCiphertext,
     InvalidRandomizedKey,
+    InvalidSpendAuthRandomizer,
     InvalidValueBalance(zcash_protocol::value::BalanceError),
     InvalidValueCommitment,
+    MissingSpendAuthRandomizer,
 }
