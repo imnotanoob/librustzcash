@@ -1,4 +1,10 @@
-use crate::{common::Zip32Derivation, roles::combiner::merge_optional, IgnoreMissing};
+use std::collections::BTreeMap;
+
+use crate::{
+    common::Zip32Derivation,
+    roles::combiner::{merge_map, merge_optional},
+    IgnoreMissing,
+};
 
 #[cfg(feature = "sapling")]
 use {
@@ -114,6 +120,8 @@ pub(crate) struct Spend {
     /// The ZIP 32 derivation path at which the spending key can be found for the note
     /// being spent.
     pub(crate) zip32_derivation: Option<Zip32Derivation>,
+
+    pub(crate) proprietary: BTreeMap<String, Vec<u8>>,
 }
 
 /// Information about a Sapling output within a transaction.
@@ -194,6 +202,8 @@ pub(crate) struct Output {
 
     /// The ZIP 32 derivation path at which the spending key can be found for the output.
     pub(crate) zip32_derivation: Option<Zip32Derivation>,
+
+    pub(crate) proprietary: BTreeMap<String, Vec<u8>>,
 }
 
 impl Bundle {
@@ -261,6 +271,7 @@ impl Bundle {
                 witness,
                 alpha,
                 zip32_derivation,
+                proprietary,
             } = rhs;
 
             if lhs.cv != cv || lhs.nullifier != nullifier || lhs.rk != rk {
@@ -276,7 +287,8 @@ impl Bundle {
                 && merge_optional(&mut lhs.proof_generation_key, proof_generation_key)
                 && merge_optional(&mut lhs.witness, witness)
                 && merge_optional(&mut lhs.alpha, alpha)
-                && merge_optional(&mut lhs.zip32_derivation, zip32_derivation))
+                && merge_optional(&mut lhs.zip32_derivation, zip32_derivation)
+                && merge_map(&mut lhs.proprietary, proprietary))
             {
                 return None;
             }
@@ -298,6 +310,7 @@ impl Bundle {
                 shared_secret,
                 ock,
                 zip32_derivation,
+                proprietary,
             } = rhs;
 
             if lhs.cv != cv
@@ -316,7 +329,8 @@ impl Bundle {
                 && merge_optional(&mut lhs.rcv, rcv)
                 && merge_optional(&mut lhs.shared_secret, shared_secret)
                 && merge_optional(&mut lhs.ock, ock)
-                && merge_optional(&mut lhs.zip32_derivation, zip32_derivation))
+                && merge_optional(&mut lhs.zip32_derivation, zip32_derivation)
+                && merge_map(&mut lhs.proprietary, proprietary))
             {
                 return None;
             }

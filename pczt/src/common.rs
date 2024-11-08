@@ -1,3 +1,7 @@
+use std::collections::BTreeMap;
+
+use crate::roles::combiner::merge_map;
+
 /// Global fields that are relevant to the transaction as a whole.
 #[derive(Clone, Debug)]
 pub(crate) struct Global {
@@ -18,16 +22,19 @@ pub(crate) struct Global {
     /// same semantics.
     pub(crate) lock_time: u32,
     pub(crate) expiry_height: u32,
+
+    pub(crate) proprietary: BTreeMap<String, Vec<u8>>,
 }
 
 impl Global {
-    pub(crate) fn merge(self, other: Self) -> Option<Self> {
+    pub(crate) fn merge(mut self, other: Self) -> Option<Self> {
         let Self {
             tx_version,
             version_group_id,
             consensus_branch_id,
             lock_time,
             expiry_height,
+            proprietary,
         } = other;
 
         if self.tx_version != tx_version
@@ -36,6 +43,10 @@ impl Global {
             || self.lock_time != lock_time
             || self.expiry_height != expiry_height
         {
+            return None;
+        }
+
+        if !merge_map(&mut self.proprietary, proprietary) {
             return None;
         }
 

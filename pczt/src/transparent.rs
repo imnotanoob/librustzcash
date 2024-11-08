@@ -104,6 +104,8 @@ pub(crate) struct Input {
     /// - These may be used by the Signer to inspect parts of `script_pubkey` or
     ///   `redeem_script`.
     pub(crate) hash256_preimages: BTreeMap<[u8; 32], Vec<u8>>,
+
+    pub(crate) proprietary: BTreeMap<String, Vec<u8>>,
 }
 
 #[derive(Clone, Debug)]
@@ -131,6 +133,8 @@ pub(crate) struct Output {
     ///
     /// TODO: Decide on map key type.
     pub(crate) bip32_derivation: BTreeMap<Vec<u8>, Zip32Derivation>,
+
+    pub(crate) proprietary: BTreeMap<String, Vec<u8>>,
 }
 
 impl Bundle {
@@ -169,6 +173,7 @@ impl Bundle {
                 sha256_preimages,
                 hash160_preimages,
                 hash256_preimages,
+                proprietary,
             } = rhs;
 
             if lhs.prevout_txid != prevout_txid
@@ -189,7 +194,8 @@ impl Bundle {
                 && merge_map(&mut lhs.ripemd160_preimages, ripemd160_preimages)
                 && merge_map(&mut lhs.sha256_preimages, sha256_preimages)
                 && merge_map(&mut lhs.hash160_preimages, hash160_preimages)
-                && merge_map(&mut lhs.hash256_preimages, hash256_preimages))
+                && merge_map(&mut lhs.hash256_preimages, hash256_preimages)
+                && merge_map(&mut lhs.proprietary, proprietary))
             {
                 return None;
             }
@@ -202,6 +208,7 @@ impl Bundle {
                 script_pubkey,
                 redeem_script,
                 bip32_derivation,
+                proprietary,
             } = rhs;
 
             if lhs.value != value || lhs.script_pubkey != script_pubkey {
@@ -209,7 +216,8 @@ impl Bundle {
             }
 
             if !(merge_optional(&mut lhs.redeem_script, redeem_script)
-                && merge_map(&mut lhs.bip32_derivation, bip32_derivation))
+                && merge_map(&mut lhs.bip32_derivation, bip32_derivation)
+                && merge_map(&mut lhs.proprietary, proprietary))
             {
                 return None;
             }
