@@ -1,4 +1,4 @@
-use crate::{roles::combiner::merge_optional, IgnoreMissing};
+use crate::{common::Zip32Derivation, roles::combiner::merge_optional, IgnoreMissing};
 
 #[cfg(feature = "sapling")]
 use {
@@ -110,6 +110,10 @@ pub(crate) struct Spend {
     ///   validate `rk`.
     /// - After`zkproof` / `spend_auth_sig` has been set, this can be redacted.
     pub(crate) alpha: Option<[u8; 32]>,
+
+    /// The ZIP 32 derivation path at which the spending key can be found for the note
+    /// being spent.
+    pub(crate) zip32_derivation: Option<Zip32Derivation>,
 }
 
 /// Information about a Sapling output within a transaction.
@@ -187,6 +191,9 @@ pub(crate) struct Output {
     /// This may be `None` if the Constructor added the output using an OVK policy of
     /// "None", to make the output unrecoverable from the chain by the sender.
     pub(crate) ock: Option<[u8; 32]>,
+
+    /// The ZIP 32 derivation path at which the spending key can be found for the output.
+    pub(crate) zip32_derivation: Option<Zip32Derivation>,
 }
 
 impl Bundle {
@@ -253,6 +260,7 @@ impl Bundle {
                 proof_generation_key,
                 witness,
                 alpha,
+                zip32_derivation,
             } = rhs;
 
             if lhs.cv != cv || lhs.nullifier != nullifier || lhs.rk != rk {
@@ -267,7 +275,8 @@ impl Bundle {
                 && merge_optional(&mut lhs.rcv, rcv)
                 && merge_optional(&mut lhs.proof_generation_key, proof_generation_key)
                 && merge_optional(&mut lhs.witness, witness)
-                && merge_optional(&mut lhs.alpha, alpha))
+                && merge_optional(&mut lhs.alpha, alpha)
+                && merge_optional(&mut lhs.zip32_derivation, zip32_derivation))
             {
                 return None;
             }
@@ -288,6 +297,7 @@ impl Bundle {
                 rcv,
                 shared_secret,
                 ock,
+                zip32_derivation,
             } = rhs;
 
             if lhs.cv != cv
@@ -305,7 +315,8 @@ impl Bundle {
                 && merge_optional(&mut lhs.rseed, rseed)
                 && merge_optional(&mut lhs.rcv, rcv)
                 && merge_optional(&mut lhs.shared_secret, shared_secret)
-                && merge_optional(&mut lhs.ock, ock))
+                && merge_optional(&mut lhs.ock, ock)
+                && merge_optional(&mut lhs.zip32_derivation, zip32_derivation))
             {
                 return None;
             }
