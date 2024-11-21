@@ -28,6 +28,12 @@ pub(crate) struct Bundle {
     /// This is initialized by the Creator, and updated by the Constructor as spends or
     /// outputs are added to the PCZT. It enables per-spend and per-output values to be
     /// redacted from the PCZT after they are no longer necessary.
+    //
+    // TODO: This is technically too small to contain the full range of intermediate value
+    // balances. Either:
+    // - Change to u128 and rely on the circuit to constrain each action balance.
+    // - Change to i64 and have it be calculated by the IO Finalizer (which would then
+    //   require all values).
     pub(crate) value_balance: u64,
 
     /// The Sapling anchor for this transaction.

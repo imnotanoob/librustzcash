@@ -1,14 +1,54 @@
 //! The Partially Created Zcash Transaction (PCZT) format.
 //!
+//! General flow for creating a shielded transaction:
+//! - Create "unsigned transaction"
+//!   - In practice means deciding on the global parts of the transaction
+//! - Collect each output
+//!   - Proofs can be created at this time
+//! - Decide on an anchor
+//!   - All spends should use the same anchor for indistinguishability
+//!   - In a future transaction version, all spends will be required to do so
+//! - Collect each spend
+//!   - Proofs can and should be created at this time
+//! - Create proofs for each spend and output
+//!   - Data necessary for proofs can be stripped out of the format
+//! - Collect proofs
+//! - Distribute collected data to signers
+//!   - Signers must verify the transaction before signing, and reject if not satisfied.
+//!   - This is the no-turning-back point regarding spend authorization!
+//! - Collect signatures
+//! - Create binding signature
+//!   - The party that performs this does not need to be trusted, because each signer
+//!     has verified the transaction and signed it, so the bindingSig can only be
+//!     computed over the same data if a valid transaction is to be created.
+//! - Extract final transaction
+//!
 //! Goal is to split up the parts of creating a transaction across distinct entities.
 //! The entity roles roughly match BIP 174: Partially Signed Bitcoin Transaction Format.
 //! - Creator (single entity)
 //!   - Creates the base PCZT with no information about spends or outputs.
 //! - Constructor (anyone can contribute)
 //!   - Adds spends and outputs to the PCZT.
+//!   - Before any input or output may be added, the constructor must check the
+//!     PSBT_GLOBAL_TX_MODIFIABLE field. Inputs may only be added if the Inputs Modifiable
+//!     flag is True. Outputs may only be added if the Outputs Modifiable flag is True.
 //!   - A single entity is likely to be both a Creator and Constructor.
 //! - IO Finalizer (anyone can execute)
+//!   - Sets the appropriate bits in PSBT_GLOBAL_TX_MODIFIABLE to 0. (TODO fix up)
+//!   - Inspects the inputs and outputs throughout the PCZT and picks a transaction
+//!     version that is compatible with all of them (or returns an error).
 //!   - Updates the various bsk values using the rcv information from spends and outputs.
+//!   - This can happen after each spend or output is added if they are added serially.
+//!     If spends and outputs are created in parallel, the IO Finalizer must act after
+//!     the Combiner.
+//! - Updater (anyone can contribute)
+//!   - Adds information necessary for subsequent entities to proceed, such as key paths
+//!     for signing spends.
+//! - Redactor (anyone can execute)
+//!   - Removes information that is unnecessary for subsequent entities to proceed.
+//!   - This can be useful e.g. when creating a transaction that has inputs from multiple
+//!     independent Signers; each can receive a PCZT with just the information they need
+//!     to sign, but (e.g.) not the `alpha` values for other Signers.
 //! - Prover (capability holders can contribute)
 //!   - Needs all private information for a single spend or output.
 //!   - In practice, the Updater that adds a given spend or output will either act as
@@ -43,6 +83,9 @@
 //!         the PCZT, with spendAuthSigs and bindingSig empty, and then enforcing equality.
 //!       - This is equivalent to BIP 147's equality definition (the partial transactions
 //!         must be identical).
+//! - Spend Finalizer (anyone can execute)
+//!   - Currently unnecessary, but when shielded multisig is implemented, this would be the
+//!     entity that combines the separate signatures into a multisignature.
 //! - Transaction Extractor (anyone can execute)
 //!   - Creates bindingSig and extracts the final transaction.
 
@@ -73,6 +116,12 @@ pub struct Pczt {
     transparent: transparent::Bundle,
     sapling: sapling::Bundle,
     orchard: orchard::Bundle,
+}
+
+/// The defined versions of PCZT.
+#[derive(Clone, PartialEq, Eq)]
+enum Version {
+    V0,
 }
 
 trait IgnoreMissing {

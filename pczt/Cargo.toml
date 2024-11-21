@@ -32,6 +32,7 @@ pasta_curves = { workspace = true, optional = true }
 
 [features]
 orchard = [
+    "dep:ff",
     "dep:nonempty",
     "dep:orchard",
     "dep:pasta_curves",
@@ -51,3 +52,7 @@ io-finalizer = ["orchard", "sapling"]
 prover = ["dep:rand_core", "sapling?/temporary-zcashd"]
 signer = ["dep:rand_core", "orchard", "sapling", "transparent"]
 tx-extractor = ["dep:rand_core", "orchard", "sapling", "transparent"]
+
+[[test]]
+name = "end_to_end"
+required-features = ["io-finalizer", "prover", "signer", "tx-extractor"]
