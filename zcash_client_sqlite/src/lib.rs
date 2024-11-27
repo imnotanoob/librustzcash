@@ -205,18 +205,18 @@ impl AccountUuid {
     }
 }
 
-/// The local identifier for an account.
+/// A typesafe wrapper for the primary key identifier for a row in the `accounts` table.
 ///
 /// This is an ephemeral value for efficiently and generically working with accounts in a
 /// [`WalletDb`]. To reference accounts in external contexts, use [`AccountUuid`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default)]
-pub(crate) struct AccountId(u32);
+pub(crate) struct AccountRef(u32);
 
 /// This implementation is retained under `#[cfg(test)]` for pre-AccountUuid testing.
 #[cfg(test)]
-impl ConditionallySelectable for AccountId {
+impl ConditionallySelectable for AccountRef {
     fn conditional_select(a: &Self, b: &Self, choice: subtle::Choice) -> Self {
-        AccountId(ConditionallySelectable::conditional_select(
+        AccountRef(ConditionallySelectable::conditional_select(
             &a.0, &b.0, choice,
         ))
     }
