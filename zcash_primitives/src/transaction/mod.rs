@@ -232,7 +232,8 @@ impl TxVersion {
                 TxVersion::Sapling
             }
             BranchId::Nu5 => TxVersion::Zip225,
-            #[cfg(feature = "zfuture")]
+            BranchId::Nu6 => TxVersion::Zip225,
+            #[cfg(zcash_unstable = "zfuture")]
             BranchId::ZFuture => TxVersion::ZFuture,
         }
     }

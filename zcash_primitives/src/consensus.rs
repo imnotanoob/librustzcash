@@ -196,6 +196,7 @@ impl Parameters for MainNetwork {
             NetworkUpgrade::Heartwood => Some(BlockHeight(903_000)),
             NetworkUpgrade::Canopy => Some(BlockHeight(1_046_400)),
             NetworkUpgrade::Nu5 => Some(BlockHeight(1_687_104)),
+            NetworkUpgrade::Nu6 => Some(BlockHeight(2_976_000)),
             #[cfg(feature = "zfuture")]
             NetworkUpgrade::ZFuture => None,
         }
@@ -241,6 +242,7 @@ impl Parameters for TestNetwork {
             NetworkUpgrade::Heartwood => Some(BlockHeight(903_800)),
             NetworkUpgrade::Canopy => Some(BlockHeight(1_028_500)),
             NetworkUpgrade::Nu5 => Some(BlockHeight(1_842_420)),
+            NetworkUpgrade::Nu6 => Some(BlockHeight(2_726_400)),
             #[cfg(feature = "zfuture")]
             NetworkUpgrade::ZFuture => None,
         }
@@ -358,6 +360,7 @@ pub enum NetworkUpgrade {
     ///
     /// [Nu5]: https://z.cash/upgrade/nu5/
     Nu5,
+    Nu6,
     /// The ZFUTURE network upgrade.
     ///
     /// This upgrade is expected never to activate on mainnet;
@@ -376,6 +379,7 @@ impl fmt::Display for NetworkUpgrade {
             NetworkUpgrade::Heartwood => write!(f, "Heartwood"),
             NetworkUpgrade::Canopy => write!(f, "Canopy"),
             NetworkUpgrade::Nu5 => write!(f, "Nu5"),
+            NetworkUpgrade::Nu6 => write!(f, "Nu6"),
             #[cfg(feature = "zfuture")]
             NetworkUpgrade::ZFuture => write!(f, "ZFUTURE"),
         }
@@ -391,6 +395,7 @@ impl NetworkUpgrade {
             NetworkUpgrade::Heartwood => BranchId::Heartwood,
             NetworkUpgrade::Canopy => BranchId::Canopy,
             NetworkUpgrade::Nu5 => BranchId::Nu5,
+            NetworkUpgrade::Nu6 => BranchId::Nu6,
             #[cfg(feature = "zfuture")]
             NetworkUpgrade::ZFuture => BranchId::ZFuture,
         }
@@ -408,6 +413,7 @@ const UPGRADES_IN_ORDER: &[NetworkUpgrade] = &[
     NetworkUpgrade::Heartwood,
     NetworkUpgrade::Canopy,
     NetworkUpgrade::Nu5,
+    NetworkUpgrade::Nu6,
 ];
 
 pub const ZIP212_GRACE_PERIOD: u32 = 32256;
@@ -441,6 +447,8 @@ pub enum BranchId {
     Canopy,
     /// The consensus rules deployed by [`NetworkUpgrade::Nu5`].
     Nu5,
+    /// The consensus rules deployed by [`NetworkUpgrade::Nu6`].
+    Nu6,
     /// Candidates for future consensus rules; this branch will never
     /// activate on mainnet.
     #[cfg(feature = "zfuture")]
@@ -459,6 +467,7 @@ impl TryFrom<u32> for BranchId {
             0xf5b9_230b => Ok(BranchId::Heartwood),
             0xe9ff_75a6 => Ok(BranchId::Canopy),
             0xc2d6_d0b4 => Ok(BranchId::Nu5),
+            0xc8e7_1055 => Ok(BranchId::Nu6),
             #[cfg(feature = "zfuture")]
             0xffff_ffff => Ok(BranchId::ZFuture),
             _ => Err("Unknown consensus branch ID"),
@@ -476,6 +485,7 @@ impl From<BranchId> for u32 {
             BranchId::Heartwood => 0xf5b9_230b,
             BranchId::Canopy => 0xe9ff_75a6,
             BranchId::Nu5 => 0xc2d6_d0b4,
+            BranchId::Nu6 => 0xc8e7_1055,
             #[cfg(feature = "zfuture")]
             BranchId::ZFuture => 0xffff_ffff,
         }
@@ -541,10 +551,13 @@ impl BranchId {
             BranchId::Canopy => params
                 .activation_height(NetworkUpgrade::Canopy)
                 .map(|lower| (lower, params.activation_height(NetworkUpgrade::Nu5))),
-            BranchId::Nu5 => params.activation_height(NetworkUpgrade::Nu5).map(|lower| {
-                #[cfg(feature = "zfuture")]
+            BranchId::Nu5 => params
+                .activation_height(NetworkUpgrade::Nu5)
+                .map(|lower| (lower, params.activation_height(NetworkUpgrade::Nu6))),
+            BranchId::Nu6 => params.activation_height(NetworkUpgrade::Nu6).map(|lower| {
+                #[cfg(zcash_unstable = "zfuture")]
                 let upper = params.activation_height(NetworkUpgrade::ZFuture);
-                #[cfg(not(feature = "zfuture"))]
+                #[cfg(not(zcash_unstable = "zfuture"))]
                 let upper = None;
                 (lower, upper)
             }),
@@ -576,6 +589,7 @@ pub mod testing {
             BranchId::Heartwood,
             BranchId::Canopy,
             BranchId::Nu5,
+            BranchId::Nu6,
             #[cfg(feature = "zfuture")]
             BranchId::ZFuture,
         ])
@@ -664,8 +678,16 @@ mod tests {
             BranchId::Nu5,
         );
         assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(5_000_000)),
+            BranchId::for_height(&MAIN_NETWORK, BlockHeight(2_726_399)),
             BranchId::Nu5,
+        );
+        assert_eq!(
+            BranchId::for_height(&MAIN_NETWORK, BlockHeight(2_726_400)),
+            BranchId::Nu6,
+        );
+        assert_eq!(
+            BranchId::for_height(&MAIN_NETWORK, BlockHeight(5_000_000)),
+            BranchId::Nu6,
         );
     }
 }
